@@ -10,6 +10,10 @@ const layer = svg.querySelector(".tg-items");
 const readout = root.querySelector("[data-readout]");
 const live = root.querySelector("[data-live]");
 const apartButton = root.querySelector("[data-apart]");
+// The gallery page has no control bar: the drawing itself is the control, and a corner hint says how.
+const BARE = !apartButton;
+const galleryHint = root.querySelector("[data-gallery-hint]");
+const HINTS = { together: "Press its buttons to play · click the egg to take it apart", apart: "Hover a part to name it · click the bench to put it back" };
 const keyButtons = [...root.querySelectorAll("[data-press]")];
 const partButtons = [...root.querySelectorAll(".tg-part")];
 const lcd = svg.querySelector("[data-lcd]");
@@ -54,8 +58,11 @@ function setApart(on) {
     if (piece[id].target === goal) piece[id].pending = null;
     else piece[id].pending = { value: goal, at: clock + (still.matches ? 0 : index * SPRING.stagger) };
   });
-  apartButton.setAttribute("aria-pressed", String(on));
-  apartButton.textContent = on ? "Put together" : "Take apart";
+  if (apartButton) {
+    apartButton.setAttribute("aria-pressed", String(on));
+    apartButton.textContent = on ? "Put together" : "Take apart";
+  }
+  if (galleryHint) galleryHint.textContent = on ? HINTS.apart : HINTS.together;
   stage.toggleAttribute("data-apart", on);
   if (!on) {
     pinned = null;
@@ -448,7 +455,7 @@ function act(button) {
 
 function pressButton(i) {
   press[i].held = 0.12;
-  keyButtons[i].setAttribute("data-down", "");
+  if (keyButtons[i]) keyButtons[i].setAttribute("data-down", "");
   act(i);
   run();
 }
@@ -494,13 +501,13 @@ function say() {
     else if (pet.mode === "dark") text += " · lights off";
     else if (needsCare()) text += " · needs you";
   }
-  if (readout.textContent !== text) readout.textContent = text;
+  if (readout && readout.textContent !== text) readout.textContent = text;
 }
 let lastSaid = "";
 function announce(text) {
   if (text === lastSaid) return;
   lastSaid = text;
-  live.textContent = text;
+  if (live) live.textContent = text;
 }
 
 // ---------- Input wakes the sound; nothing plays on its own ----------
@@ -544,6 +551,7 @@ let visible = false;
 let lcdOn = null;
 function tick(now) {
   const dt = last ? Math.min((now - last) / 1000, 1 / 30) : 1 / 60;
+  const wall = last ? (now - last) / 1000 : 1 / 60; // unclamped, for the recording timeline
   last = now;
   const calm = still.matches;
   clock += dt;
@@ -586,6 +594,9 @@ function tick(now) {
   keyButtons.forEach((b, i) => press[i].held === 0 && b.hasAttribute("data-down") && b.removeAttribute("data-down"));
   place();
   stepCamera(dt, calm);
+  // @demo-start
+  if (DEMO) demoTick(wall);
+  // @demo-end
   petTick(dt);
   const on = wired();
   if (on !== lcdOn) {
@@ -652,6 +663,89 @@ svg.addEventListener("pointerleave", () => {
   show();
 });
 
+// @demo-start
+// ---------- Recording demo ----------
+// Runs only under the offline renderer (tools/render installs window.__vt before the page loads)
+// or with ?demo in the URL for a preview. A drawn cursor presses the buttons, takes the egg apart,
+// hovers a few layers and puts it back together, on a fixed timeline so every render is identical.
+const DEMO = !BARE && (!!window.__vt || new URLSearchParams(location.search).has("demo"));
+const plate = root.querySelector(".iso-plate");
+const KEY = (i) => () => keyButtons[i];
+const APART = () => apartButton;
+const PART = (id) => ({ part: id });
+const DEMO_STEPS = [
+  [0.0, "cursor", PART("cover")],
+  [1.5, "move", KEY(0)], [2.0, "press", 0],
+  [2.25, "move", KEY(1)], [2.6, "press", 1], // food: it eats
+  [5.0, "move", KEY(0)], [5.3, "press", 0], [5.55, "press", 0], [5.8, "press", 0],
+  [6.0, "move", KEY(1)], [6.3, "press", 1], // game: it hops
+  [8.4, "move", APART], [8.9, "click", "apart"],
+  [9.8, "move", PART("cover")], [10.15, "hover", "cover"],
+  [10.5, "move", PART("lcd")], [10.85, "hover", "lcd"],
+  [11.2, "move", PART("pcb")], [11.55, "hover", "pcb"],
+  [11.9, "move", PART("cells")], [12.25, "hover", "cells"],
+  [12.65, "move", APART], [12.85, "hover", null], [13.1, "click", "together"],
+  [14.6, "move", KEY(1)],
+];
+const demo = { clock: 0, step: 0, el: null, at: [0, 0], from: [0, 0], to: [0, 0], t0: 0, dur: 0.42, tap: -1 };
+function demoPoint(target) {
+  const box = plate.getBoundingClientRect();
+  if (target && target.part) {
+    const id = target.part;
+    const [cx, cy] = D.pieces[id].centre;
+    const dy = D.pieces[id].move * (apart ? 1 : 0);
+    const p = svg.createSVGPoint();
+    p.x = cx + D.EY[0] * dy;
+    p.y = cy + D.EY[1] * dy;
+    const s = p.matrixTransform(svg.getScreenCTM());
+    return [s.x - box.left, s.y - box.top];
+  }
+  const r = target().getBoundingClientRect();
+  return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top];
+}
+function demoTick(dt) {
+  demo.clock += dt;
+  while (demo.step < DEMO_STEPS.length && demo.clock >= DEMO_STEPS[demo.step][0]) {
+    const [, action, arg] = DEMO_STEPS[demo.step++];
+    if (action === "cursor") {
+      demo.el = document.createElement("div");
+      demo.el.className = "tg-cursor";
+      demo.el.setAttribute("aria-hidden", "true");
+      plate.appendChild(demo.el);
+      demo.at = demo.from = demo.to = demoPoint(arg);
+    } else if (action === "move") {
+      demo.from = demo.at;
+      demo.to = demoPoint(arg);
+      demo.t0 = demo.clock;
+    } else if (action === "press") {
+      demo.tap = demo.clock;
+      pressButton(arg);
+    } else if (action === "click") {
+      demo.tap = demo.clock;
+      setApart(arg === "apart");
+    } else if (action === "hover") {
+      hovered = arg;
+      show();
+      if (arg) {
+        tipName.textContent = D.pieces[arg].name;
+        tipSay.textContent = D.pieces[arg].say.split(" · ").slice(1).join(" · ") || D.pieces[arg].say;
+        const box = plate.getBoundingClientRect();
+        placeTip({ clientX: demo.to[0] + box.left, clientY: demo.to[1] + box.top });
+        tip.setAttribute("data-on", "");
+      } else hideTip();
+    }
+  }
+  if (!demo.el) return;
+  const k = Math.min(1, (demo.clock - demo.t0) / demo.dur);
+  const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  demo.at = [demo.from[0] + (demo.to[0] - demo.from[0]) * e, demo.from[1] + (demo.to[1] - demo.from[1]) * e];
+  const age = demo.clock - demo.tap;
+  const squeeze = age >= 0 && age < 0.22 ? 1 - 0.22 * Math.sin((age / 0.22) * Math.PI) : 1;
+  demo.el.style.transform = `translate(${demo.at[0].toFixed(1)}px, ${demo.at[1].toFixed(1)}px) translate(-50%, -50%) scale(${squeeze.toFixed(3)})`;
+}
+
+// @demo-end
+
 // ---------- Input ----------
 const KEYS = { a: 0, b: 1, c: 2, Enter: 1 };
 stage.addEventListener("keydown", (event) => {
@@ -692,6 +786,22 @@ stage.addEventListener("keydown", (event) => {
   }
 });
 svg.addEventListener("click", (event) => {
+  if (BARE) {
+    takeOver();
+    const node = event.target.closest(".it");
+    const id = node && !node.hasAttribute("data-halo") && node.dataset.piece !== "stand" ? node.dataset.piece : null;
+    if (!apart) {
+      const hit = event.target.closest("[data-btn]");
+      if (hit) pressButton(Number(hit.dataset.btn));
+      else if (id) setApart(true);
+    } else if (id) {
+      // A tap names a part on touch screens, where there is no hover.
+      pinned = pinned === id ? null : id;
+      show();
+    } else setApart(false);
+    stage.focus({ preventScroll: true });
+    return;
+  }
   if (apart) {
     const node = event.target.closest(".it");
     const id = node && !node.hasAttribute("data-halo") && node.dataset.piece !== "stand" ? node.dataset.piece : null;
@@ -710,7 +820,7 @@ keyButtons.forEach((b) => b.addEventListener("click", () => {
   takeOver();
   pressButton(Number(b.dataset.press));
 }));
-apartButton.addEventListener("click", () => {
+if (apartButton) apartButton.addEventListener("click", () => {
   takeOver();
   setApart(!apart);
 });
