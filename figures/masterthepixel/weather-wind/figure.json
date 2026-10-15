@@ -1,0 +1,32 @@
+{
+  "id": "weather-wind",
+  "title": "Weather: Wind, cup anemometer on a compass base",
+  "author": "masterthepixel",
+  "prompt": "An animated weather icon for \"Wind\", drawn as a real object (cup anemometer on a compass base) with many small precise parts. One of a set of weather icons for a daily local-weather post.",
+  "kind": "SVG",
+  "agent": "Claude Code",
+  "model": "Claude Sonnet 5.5",
+  "skill": {
+    "kit": "sha256:88e307d515b00831262bb91c32be1c68e4c7d93e3f898f9cea8cfa7ee84ff425"
+  },
+  "build": [
+    [
+      "src/build.mjs",
+      "--light"
+    ],
+    [
+      "src/build.mjs"
+    ]
+  ],
+  "pages": {
+    "dark": "src/wind.html",
+    "light": "src/wind-light.html"
+  },
+  "preview": "light",
+  "license": "MIT",
+  "tags": [
+    "weather",
+    "wind"
+  ],
+  "created": "2026-10-14"
+}
