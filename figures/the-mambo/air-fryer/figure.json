@@ -5,14 +5,13 @@
   "prompt": "Let's test the Anatomy skill with an Air Fryer, always wanted to see how those work",
   "kind": "SVG",
   "agent": "Other",
-  "model": "Grok Bot",
+  "model": "Grok 4.7",
   "skill": {
     "kit": "sha256:88e307d515b00831262bb91c32be1c68e4c7d93e3f898f9cea8cfa7ee84ff425"
   },
   "build": [
     [
-      "src/build.mjs",
-      "--light"
+      "src/build.mjs"
     ]
   ],
   "pages": {

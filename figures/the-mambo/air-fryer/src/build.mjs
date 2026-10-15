@@ -82,7 +82,7 @@ function halfBand(plan, t, far, steps = 10) {
     S(k.cylinder(x, y, KNOB_R + 0.8, BASE_H, 1, P, 28), { tone: "mid" }) +
     S(k.cylinder(x, y, KNOB_R, BASE_H + 1, KNOB_H - 1, P, 32, 0.4), { tone: "hi", crease: "lo" }) +
     L(k.knurl(x, y, KNOB_R, BASE_H + 1.4, BASE_H + KNOB_H - 0.6, 30, P), { tone: "lo" }) +
-    `<path data-part="knob" class="iso-line" data-tone="lit" data-free="end" style="stroke-width:0.9" d="${k.lineOnTop([x, y], [x, y - KNOB_R + 1], BASE_H + KNOB_H, P)}"/>` +
+    `<path data-part="knob" class="iso-line" data-tone="lit" data-free="end" style="stroke-width:0.9" d="${k.lineOnTop([x, y], [x + Math.sin(Math.PI * 1.75) * (KNOB_R - 1), y - Math.cos(Math.PI * 1.75) * (KNOB_R - 1)], BASE_H + KNOB_H, P)}"/>` +
     D([at([x, y, BASE_H + KNOB_H])], { size: 0.5, tone: "hi" });
   put("base.knob", [x, y, BASE_H + 3], ksvg, [A.cylinder(x, y, KNOB_R + 0.8, BASE_H, 1, { name: "base.knob.collar" }), A.cylinder(x, y, KNOB_R, BASE_H + 1, KNOB_H - 1, { name: "base.knob" })]);
   const [lx, ly] = LAMP, lc = at([lx, ly, BASE_H + 2.2]);
@@ -206,9 +206,9 @@ const NS = "http://www.w3.org/2000/svg";
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 // ---- model: lumped chamber air, bang-bang thermostat with a 4 C band, lagging food surface ----
 const AMB = 22, TMAX = 262, TAU = 130, BAND = 4, TAU_FOOD = 75, BROWN_ON = 140, SIM = 20, SET_MIN = 80, SET_MAX = 200;
-let S = { air: AMB, food: AMB, on: true, set: 200, brown: 0, t: 0, el: 0, fan: 0, reached: false, cycles: 0, moist: 1 };
+let S = { air: AMB, food: AMB, on: true, set: 200, brown: 0, el: 0, fan: 0, reached: false, moist: 1 };
 function step(dt) {
-  if (S.on && S.air >= S.set + BAND / 2) { S.on = false; S.reached = true; S.cycles++; }
+  if (S.on && S.air >= S.set + BAND / 2) { S.on = false; S.reached = true; }
   if (!S.on && S.air <= S.set - BAND / 2) S.on = true;
   S.air += ((S.on ? TMAX : AMB) - S.air) * (1 - Math.exp(-dt / TAU));
   // while the surface is wet, evaporation pins it near 100 C; it rises toward the air only once it has dried
@@ -216,14 +216,8 @@ function step(dt) {
   S.food += (cap - S.food) * (1 - Math.exp(-dt / TAU_FOOD));
   if (S.moist > 0 && S.food > 95) S.moist = Math.max(0, S.moist - dt * Math.max(0, S.air - 100) / 12000);
   if (S.food > BROWN_ON) S.brown = Math.min(1, S.brown + dt * ((S.food - BROWN_ON) / 60) / 120);
-  S.t += dt;
 }
-const STAGES = [
-  ["Heating up", "The element is on and the air in the chamber is warming toward the dial setting."],
-  ["Circulating", "The fan throws hot air out and down the drawer walls, then up through the crisper plate and the fries, drying their surface."],
-  ["Holding temp", "The probe tells the thermostat to switch the element off just above the setpoint and back on just below; the fan keeps running while moisture leaves the fries' surface."],
-  ["Browning", "The fries' surface has passed about 140 °C: browning (Maillard) reactions colour it and it crisps."],
-];
+const STAGES = ["Heating up", "Circulating", "Holding temp", "Browning"];
 function stageOf() {
   if (S.food >= BROWN_ON && S.reached) return 3;
   if (!S.reached) return S.air > S.set - 40 ? 1 : 0;
@@ -262,16 +256,16 @@ function draw() {
   for (let i = 0; i < 6; i++) { const a = fanAngle + i * Math.PI / 3, b = a + 0.32; d += lineOnTop([Math.cos(a) * HUB_R, Math.sin(a) * HUB_R], [Math.cos(b) * (FAN_R - 2), Math.sin(b) * (FAN_R - 2)], FAN_Z, P); }
   blades.setAttribute("d", d);
   const ka = Math.PI * 0.25 + (S.set - SET_MIN) / (SET_MAX - SET_MIN) * Math.PI * 1.5;
-  knob.setAttribute("d", lineOnTop(KNOB, [KNOB[0] - Math.sin(ka) * (KNOB_R - 1), KNOB[1] + Math.cos(ka) * (KNOB_R - 1)], KNOB_TOP, P));
+  knob.setAttribute("d", lineOnTop(KNOB, [KNOB[0] + Math.sin(ka) * (KNOB_R - 1), KNOB[1] - Math.cos(ka) * (KNOB_R - 1)], KNOB_TOP, P));
   glow.style.opacity = S.el.toFixed(3); glow.style.stroke = hex(mix([150, 60, 50], [240, 110, 40], S.el));
   lamp.style.opacity = S.on ? "1" : "0.08";
   const b = S.brown;
   const top = hex(mix([246, 230, 170], [228, 176, 84], b)), side = hex(mix([228, 205, 130], [200, 138, 56], b)), dark = hex(mix([214, 188, 112], [166, 106, 40], b));
   for (const f of fries) f.setAttribute("style", "--anatomy-top:" + top + ";--anatomy-shade-3:" + side + ";--anatomy-shade-2:" + side + ";--anatomy-shade-1:" + dark + ";--anatomy-shade-0:" + dark + ";--anatomy-paper:" + side);
   const st = stageOf();
-  const text = STAGES[st][0] + " · air " + Math.round(S.air) + " °C · set " + S.set + " °C · element " + (S.on ? "on" : "off") + "";
+  const text = STAGES[st] + " · air " + Math.round(S.air) + " °C · set " + S.set + " °C · element " + (S.on ? "on" : "off") + "";
   if (readout.textContent !== text) readout.textContent = text;
-  stage.setAttribute("aria-valuenow", String(S.set)); stage.setAttribute("aria-valuetext", STAGES[st][0] + ". " + text);
+  stage.setAttribute("aria-valuenow", String(S.set)); stage.setAttribute("aria-valuetext", STAGES[st] + ". " + text);
 }
 let frame = 0, last = 0, visible = false, touring = true;
 function tick(now) {
@@ -283,25 +277,27 @@ function tick(now) {
   fanAngle += dt * S.fan * 9;
   drawAir(dt); draw();
   if (touring && S.brown >= 1) { touring = false; setTimeout(restart, 2500); }
-  frame = visible ? requestAnimationFrame(tick) : 0;
+  frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
 }
-function restart() { Object.assign(S, { air: AMB, food: AMB, brown: 0, t: 0, on: true, reached: false, cycles: 0, moist: 1 }); touring = true; }
+function restart() { Object.assign(S, { air: AMB, food: AMB, brown: 0, on: true, reached: false, moist: 1 }); touring = true; }
 const run = () => { if (!frame && visible && !still.matches) { last = 0; frame = requestAnimationFrame(tick); } };
 function steer(set) { S.set = Math.round(clamp(set, SET_MIN, SET_MAX) / 5) * 5; draw(); }
 function stillFrame() { S.set = 200; S.fan = 1; for (let i = 0; i < 2000; i++) step(0.25); S.el = S.on ? 1 : 0; drawAir(0); draw(); }
 new IntersectionObserver((e) => { visible = e[e.length - 1].isIntersecting; if (visible) run(); }, { rootMargin: "120px 0px" }).observe(stage);
 stage.addEventListener("pointermove", (e) => { const box = svg.getBoundingClientRect(); steer(SET_MIN + clamp(((e.clientX - box.left) / box.width - 0.25) / 0.5, 0, 1) * (SET_MAX - SET_MIN)); });
-stage.addEventListener("click", () => { restart(); run(); });
+const fresh = () => { restart(); if (still.matches) { drawAir(0); draw(); } else run(); };
+stage.addEventListener("click", fresh);
 stage.addEventListener("keydown", (e) => {
   if (e.key === "ArrowUp" || e.key === "ArrowRight") steer(S.set + 5);
   else if (e.key === "ArrowDown" || e.key === "ArrowLeft") steer(S.set - 5);
-  else if (e.key === "Enter" || e.key === " ") restart();
+  else if (e.key === "Enter" || e.key === " ") fresh();
   else return;
   e.preventDefault();
 });
 still.addEventListener("change", () => { if (still.matches) stillFrame(); else run(); });
 // ?t=<sim seconds> fast-forwards the model (for captures and deep links)
-const skip = Number(new URLSearchParams(location.search).get("t")) || 0;
+const tRaw = Number(new URLSearchParams(location.search).get("t"));
+const skip = Number.isNaN(tRaw) ? 0 : Math.min(Math.max(tRaw, 0), 600);
 for (let t = 0; t < skip; t += 0.25) step(0.25);
 if (skip) { S.el = S.on ? 1 : 0; S.fan = 1; }
 if (still.matches) stillFrame(); else { drawAir(0); draw(); }
@@ -312,7 +308,7 @@ const plate = k.plateHtml({
   fig: "Fig 1",
   title: "Basket air fryer",
   hint: "Hover: dial · click: new batch",
-  readout: "Heating up · air 22 °C · set 200 °C · heat on",
+  readout: "Heating up · air 22 °C · set 200 °C · element on",
   keys: [
     { mark: "lit", label: "Heating element: glows while the thermostat holds it on" },
     { mark: "raised", label: "Crisper plate in the pull-out drawer; drip space below" },

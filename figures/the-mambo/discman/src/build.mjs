@@ -8,11 +8,10 @@ import { kitScript } from "../../../../.skill/scripts/inline-kit.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GALLERY = true;
-const LABELS = !GALLERY;
-const DW = 600, OX = LABELS ? 130 : 0, WIDTH = DW + 2 * OX, HEIGHT = LABELS ? 500 : 530;
+const DW = 600, WIDTH = DW, HEIGHT = 530;
 
-// ---- colours sampled from Dan's photos (well-lit pixels, highlights excluded) ----
-const SAMPLED = { yellow: "#ceaa1f", grey: "#424442", orange: "#a04829" };
+// ---- colours checked against public product photos of the D-421SP: yellow Sports lid, mid-grey shell and front section ----
+const SAMPLED = { yellow: "#ecbf26", grey: "#5c605f", orange: "#a04829" };
 const hex2 = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const toHex = (c) => "#" + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
 const lighten = (h, f) => toHex(hex2(h).map((v) => v + (255 - v) * f));
@@ -32,7 +31,6 @@ const PLATE = { x: -82, y: -82, w: 164, d: 178, r: 10 }, PLATE_H = 7, FOOT_H = 4
 const BODY = { x: -68, y: -68, w: 136, d: 150, r: 18 };
 const FLOOR = 4, WALL_TOP = 17, LID_TOP = 22, CHIN_Y = 62;
 const DISC_R = 60, DISC_Z0 = 10.6, DISC_Z1 = 11.8;
-const CUT = (x, y) => x > 0 && y > 0 && y < CHIN_Y;
 const S2 = Math.SQRT1_2, U = [S2, S2], N = [-S2, S2];
 const SLED_R0 = 26, SLED_R1 = 50, SLED_L = 14, SLED_W = 22, RAIL_OFF = 8, RAIL_Z1 = 6.4, SLED_Z1 = 9.2, LENS_Z1 = 10.0;
 
@@ -98,14 +96,9 @@ const INNER = dense(k.ringOf(k.insetPlan(BODY, 4), 10));
     put("body.wall." + name, [c[0], c[1], 10], tint(GREY, S(k.extrude(band, FLOOR, WALL_TOP - FLOOR, P, { convex: false, bevel: 0.4 }), { tone: "mid" })),
       [A.extruded(band, FLOOR, WALL_TOP - FLOOR, { name: "body.wall." + name, owner: "body" })]);
   }
-  const chin = OUTER.filter(([, y]) => y >= CHIN_Y);
-  chin.push([chin[chin.length - 1][0] < 0 ? -64 : 64, CHIN_Y]);
-  const chinRing = [...OUTER.filter(([, y]) => y >= CHIN_Y)];
-  const ring = [[68, CHIN_Y], ...chinRing.sort((a, b) => Math.atan2(a[1] - 72, a[0]) - Math.atan2(b[1] - 72, b[0])), [-68, CHIN_Y]];
   // order the chin points round its outline (front arc from +x to -x)
   const front = OUTER.filter(([, y]) => y > CHIN_Y);
   const ordered = [[68, CHIN_Y], ...front.slice().sort((a, b) => b[0] - a[0] || (b[0] > 0 ? a[1] - b[1] : b[1] - a[1])), [-68, CHIN_Y]];
-  void ring;
   const sports = k.faceTextSvg(k.sideMatrix([-60, 82], 11.6, P, "left"), "SPORTS", { size: 6.4, tone: "hi" }).replace('class="iso-face-text"', `class="iso-face-text" style="fill:${ORANGE};font-weight:800;font-style:italic;letter-spacing:.02em"`);
   put("body.chin", [0, 72, 18], tint(GREY, S(k.extrude(ordered, WALL_TOP, LID_TOP - WALL_TOP, P, { bevel: 0.6 }), { tone: "mid" })) + sports,
     [A.extruded(ordered, WALL_TOP, LID_TOP - WALL_TOP, { name: "body.chin", owner: "body" })]);
@@ -139,7 +132,6 @@ const INNER = dense(k.ringOf(k.insetPlan(BODY, 4), 10));
   }
   const pinF = XA(-53.4);
   put("lid.pin", [-53.4, HINGE[1], HINGE[2]], tint(SILVER, S(G.solidOf([[0, 1], [1.4, 1]], pinF, P, {}), { tone: "hi" })), [A.solid(pinF, [[0, 1], [1.4, 1]], { name: "lid.pin", owner: "body" })]);
-  globalThis.__LID = LID;
 }
 // ---- chin details: LCD with ESP memory icon, buttons, engraved SPORTS, side jacks, HOLD, volume ----
 const LCD = { x: -58, y: 65, w: 46, d: 13, r: 1.5 };
@@ -186,8 +178,8 @@ const LCD = { x: -58, y: 65, w: 46, d: 13, r: 1.5 };
   put("mech.sled", [sc[0], sc[1], 8], `<g data-part="sled">` + tint(GREY, S(k.extrude(sring, RAIL_Z1, SLED_Z1 - RAIL_Z1, P, { bevel: 0.3 }), { tone: "mid" })) +
     tint(CHIP, S(k.cylinder(lens[0], lens[1], 3, SLED_Z1, LENS_Z1 - SLED_Z1, P, 24), { tone: "mid" })) +
     `<circle cx="${at([lens[0], lens[1], LENS_Z1])[0]}" cy="${at([lens[0], lens[1], LENS_Z1])[1]}" r="1.3" style="fill:#5b4b9a"/>` +
-    `<path data-part="beam" class="iso-line" data-tone="lit" d="M${at([lens[0], lens[1], LENS_Z1]).join(" ")}L${at([lens[0], lens[1], DISC_Z0 + 2.6]).join(" ")}" style="stroke:#e5484d;stroke-width:1.1"/>` +
-    `<circle data-part="spot" cx="${at([lens[0], lens[1], DISC_Z0 + 2.6])[0]}" cy="${at([lens[0], lens[1], DISC_Z0 + 2.6])[1]}" r="1.1" style="fill:#e5484d"/></g>`,
+    `<path data-part="beam" class="iso-line" data-tone="lit" d="M${at([lens[0], lens[1], LENS_Z1]).join(" ")}L${at([lens[0], lens[1], DISC_Z1]).join(" ")}" style="stroke:#e5484d;stroke-width:1.1"/>` +
+    `<circle data-part="spot" cx="${at([lens[0], lens[1], DISC_Z1])[0]}" cy="${at([lens[0], lens[1], DISC_Z1])[1]}" r="1.1" style="fill:#e5484d"/></g>`,
     [A.extruded(sring, RAIL_Z1, SLED_Z1 - RAIL_Z1, { name: "mech.sled", owner: "mech" }), A.cylinder(lens[0], lens[1], 3, SLED_Z1, LENS_Z1 - SLED_Z1, { name: "mech.lens", owner: "mech" })]);
 }
 const CHIPS = { dsp: { x: 30, y: 2, w: 12, d: 10, r: 0.8 }, ram: { x: 46, y: 2, w: 12, d: 12, r: 0.8 }, dac: { x: 52, y: 20, w: 7, d: 7, r: 0.6 } };
@@ -198,8 +190,6 @@ const CHIPS = { dsp: { x: 30, y: 2, w: 12, d: 10, r: 0.8 }, ram: { x: 46, y: 2, 
     put("chip." + name, [c.x + c.w / 2, c.y + c.d / 2, 5], tint(CHIP, S(k.slabOf(c, FLOOR, 1.8, P, 2, 0.3), { tone: "mid" })) + D(pins, { size: 0.35, tone: "mid" }) + D([at([c.x + 1.6, c.y + 1.6, FLOOR + 1.8])], { size: 0.4, tone: "lo" }),
       [A.slab(c, FLOOR, 1.8, { name: "chip." + name, owner: "mech" }, 2)]);
   }
-  const traces = k.lineOnTop([42, 7], [46, 7], FLOOR, P) + k.lineOnTop([54, 14], [54, 20], FLOOR, P) + k.lineOnTop([59, 23.5], [64, 23.5], FLOOR, P);
-  put("pcb.traces", [52, 14, FLOOR], "", [A.slab({ x: 42, y: 6, w: 22, d: 18, r: 0 }, FLOOR, 0.05, { name: "pcb.traces", owner: "mech" }, 1)]);
 }
 // ---- the disc (cut quadrant), centring chuck ----
 const DISC = (() => { const pts = []; for (let i = 0; i <= 270; i += 2) { const a = (90 + i) * Math.PI / 180; pts.push([Math.cos(a) * DISC_R, Math.sin(a) * DISC_R]); } pts.push([0, 0]); return pts; })();
@@ -216,43 +206,18 @@ A.settle(R, P);
 const items = [...R.items].sort((a, b) => a.key - b.key);
 A.auditOrExit(R, P);
 const rig = [];
-items.forEach((it) => { if (!it.name.startsWith("stand.")) { rig.push(`<g data-item="${it.name}">${it.svg}</g>`); if (it.name === "pcb.traces") rig.push(`<g data-part="flow"></g>`); } });
+items.forEach((it) => { if (!it.name.startsWith("stand.")) { rig.push(`<g data-item="${it.name}">${it.svg}</g>`); if (it.name === "chip.dac") rig.push(`<g data-part="flow"></g>`); } });
 const stand = items.filter((it) => it.name.startsWith("stand.")).map((it) => `<g data-item="${it.name}">${it.svg}</g>`);
 const drawing = [...stand, `<g data-part="rig">`, ...rig, `</g>`];
 
-// ---- callouts (labelled build only) ----
-let callouts = "", CALL = [];
-if (LABELS) {
-  const sc = (p) => { const [x, y] = at(p); return [x + OX, y]; };
-  CALL = [
-    { side: "L", name: "Disc", p: [-24, 34, DISC_Z1] },
-    { side: "L", name: "ESP button + LCD", p: [-30, 71, LID_TOP + 0.4] },
-    { side: "L", name: "HOLD / volume", p: [-35, 84, 8] },
-    { side: "L", name: "Spindle + chuck", p: [-3, -3, DISC_Z1 + 1.8] },
-    { side: "R", name: "Laser pickup (sled)", p: [...along(SLED_R0 + 2, -10), 8] },
-    { side: "R", name: "ESP memory", p: [52, 8, FLOOR + 1.8] },
-    { side: "R", name: "1-bit DAC", p: [55.5, 23.5, FLOOR + 1.8] },
-    { side: "R", name: "Phones / line out", p: [68, 72.5, 20.2] },
-  ].map((c, i) => ({ ...c, n: i + 1, a: sc(c.p) }));
-  for (const side of ["L", "R"]) { const col = CALL.filter((c) => c.side === side).sort((a, b) => a.a[1] - b.a[1]); let y = 30; for (const c of col) { c.y = Math.max(c.a[1], y); y = c.y + 32; } }
-  const BR = 10;
-  callouts = CALL.map((c) => {
-    const bx = c.side === "L" ? OX - 6 : OX + DW + 6, dir = c.side === "L" ? 1 : -1;
-    const pts = [[bx + dir * BR, c.y], [c.a[0] - dir * 10, c.y], c.a];
-    const tx = c.side === "L" ? bx - BR - 6 : bx + BR + 6;
-    return `<g class="co"><path class="iso-line co-l" d="M${pts.map((p) => p.map((v) => v.toFixed(2)).join(" ")).join("L")}"/><circle class="co-dot" cx="${c.a[0].toFixed(2)}" cy="${c.a[1].toFixed(2)}" r="1.6"/>` +
-      `<circle class="co-b" cx="${bx}" cy="${c.y.toFixed(2)}" r="${BR}"/><text class="co-n" x="${bx}" y="${(c.y + 4.4).toFixed(2)}">${c.n}</text><text class="co-t" x="${tx}" y="${(c.y + 4).toFixed(2)}" text-anchor="${c.side === "L" ? "end" : "start"}">${c.name}</text></g>`;
-  }).join("");
-}
 const svg = k.figureSvg({
   width: WIDTH, height: HEIGHT,
   label: "A cutaway Sony Discman ESP Sports D-421SP: dark grey body with the yellow lid hinged open at the rear and a quarter cut from the disc and side wall, so the spindle motor, the laser pickup on its rails, and the decoder, memory and 1-bit converter chips on the floor are visible. The disc spins; the pickup reads ahead into a 3-second memory, which keeps the sound playing when a jolt knocks the laser off the track.",
-  body: LABELS ? [`<g transform="translate(${OX} 0)">`, ...drawing, `</g>`, callouts] : drawing,
+  body: drawing,
 });
 
 const live = `
 const P = ${JSON.stringify(P)};
-const LABELS = ${LABELS};
 const U = ${JSON.stringify(U)}, SLED_R0 = ${SLED_R0}, SLED_R1 = ${SLED_R1}, DISC_Z1 = ${DISC_Z1}, DISC_R = ${DISC_R}, FLOOR = ${FLOOR};
 const LCD = ${JSON.stringify(LCD)}, LID_TOP = ${LID_TOP};
 const CHIPS = ${JSON.stringify(CHIPS)};
@@ -260,12 +225,10 @@ const stage = document.querySelector(".iso-stage"), svg = stage.querySelector("s
 const $ = (n) => svg.querySelector('[data-part="' + n + '"]');
 const rig = $("rig"), sled = $("sled"), beam = $("beam"), spot = $("spot"), label = $("label"), lcd = $("lcd"), flow = $("flow"), led = $("esp-led");
 const readout = document.querySelector("[data-readout]");
-const stageName = document.querySelector("[data-stage-name]"), stageText = document.querySelector("[data-stage-text]"), meter = document.querySelector("[data-meter]"), meterText = document.querySelector("[data-meter-text]");
-const chips = [...document.querySelectorAll("[data-step]")];
 const still = matchMedia("(prefers-reduced-motion: reduce)");
 const NS = "http://www.w3.org/2000/svg";
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-// ---- model. From the manual: ESP "constantly stores the next 3 seconds of sound"; with ESP the disc spins faster than normal.
+// ---- model. Hi-Fi News (D-421SP review): ESP is "a three second memory buffer", filled by scanning the disc at 2x speed.
 // Simple model: the pickup reads ahead at READ x playback speed while the memory is below full; audio always plays out of the memory.
 const CAP = 3, READ = 2, SPINUP = 1.2, RECOVER = 0.6;
 const M = { playing: true, esp: true, buf: 0, t: 0, track: 1, spin: 0, phase: "spinup", phaseT: 0, jolt: 0, shake: 0, skip: 0, r: SLED_R0, angle: 0, refill: false };
@@ -292,18 +255,13 @@ function step(dt) {
   M.r = SLED_R0 + ((M.t / 240) % 1) * (SLED_R1 - SLED_R0);
   M.angle += dt * M.spin * 9; // drawn slowly; a real CD turns about 200 to 500 times a minute
 }
-const STAGES = [
-  ["Spinning up", "The spindle motor brings the disc up to speed and the laser pickup focuses on the track of pits."],
-  ["Reading ahead", "The pickup reads the pits faster than the music plays and fills the ESP memory with the next seconds of sound."],
-  ["Jolt: playing from memory", "A shock knocked the laser off the track. The sound keeps coming from the memory, which drains while the pickup is lost."],
-  ["Recovering", "The pickup finds its place again and refills the memory faster than it is played; then it only tops it up."],
-];
+const STAGES = ["Spinning up", "Reading ahead", "Jolt: playing from memory", "Recovering"];
 function stageOf() { return M.phase === "spinup" ? 0 : M.phase === "jolt" || M.phase === "seek" ? 2 : M.phase === "recover" ? 3 : 1; }
 // ---- data flow dots: lens -> decoder (DSP) -> memory -> DAC -> jack ----
 const dots = [];
 for (let i = 0; i < 14; i++) { const el = document.createElementNS(NS, "circle"); el.setAttribute("r", "0.9"); flow.appendChild(el); dots.push({ el, s: i / 14 }); }
 const ctr = (c) => [c.x + c.w / 2, c.y + c.d / 2];
-function flowPath() { const lens = [U[0] * M.r, U[1] * M.r]; return [[...lens, 9], [...ctr(CHIPS.dsp), 6], [...ctr(CHIPS.ram), 6], [...ctr(CHIPS.dac), 6], [64, 23.5, 6]]; }
+function flowPath() { const lens = [U[0] * M.r, U[1] * M.r]; return [[...lens, 9], [...ctr(CHIPS.dsp), 6], [...ctr(CHIPS.ram), 6], [...ctr(CHIPS.dac), 6], [64, 23.5, 6], [64, 60, 8], [68, 69, 18], [68, 76, 18]]; }
 function walk(path, s) { const seg = []; let tot = 0; for (let i = 0; i < path.length - 1; i++) { const l = Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]); seg.push(l); tot += l; } let d = s * tot; for (let i = 0; i < seg.length; i++) { if (d <= seg[i]) { const f = d / seg[i]; return [path[i].map((v, j) => v + (path[i + 1][j] - v) * f), i]; } d -= seg[i]; } return [path[path.length - 1], seg.length - 1]; }
 const onTopP = (pts, z) => "M" + pts.map((p) => iso([p[0], p[1], z], P).map((v) => v.toFixed(2)).join(" ")).join("L");
 function drawLabel() {
@@ -319,7 +277,7 @@ function drawLcd() {
   const lvl = M.esp ? Math.round(M.buf / CAP * 12) : 0;
   const ox = LCD.x + 4, oy = LCD.y + 3;
   let out = "";
-  // ESP memory icon as in the manual: a cup of dots that fills and drains
+  // ESP memory icon: a hopper of dots that fills and drains, as on the real LCD
   const cup = onTopP([[ox, oy], [ox, oy + 7], [ox + 6, oy + 7], [ox + 6, oy], [ox, oy]], LID_TOP + 0.4);
   out += '<path class="iso-line" d="' + cup + '" style="stroke:#e5484d;stroke-width:.6"/>';
   for (let i = 0; i < 12; i++) { const c = i % 3, r = Math.floor(i / 3); const p = iso([ox + 1.4 + c * 1.6, oy + 6 - r * 1.5, LID_TOP + 0.4], P); out += '<circle cx="' + p[0].toFixed(2) + '" cy="' + p[1].toFixed(2) + '" r=".55" style="fill:#e5484d;opacity:' + (i < lvl ? 1 : 0.12) + '"/>'; }
@@ -328,7 +286,6 @@ function drawLcd() {
   out += '<text class="iso-face-text" transform="' + topMatrix([LCD.x + 13, LCD.y + 9.5], LID_TOP + 0.4, P, "x") + '" font-size="6" style="fill:#e5484d;font-family:ui-monospace,monospace">' + (M.skip > 0.5 && M.playing ? "-- -:--" : txt) + '</text>';
   lcd.innerHTML = out;
 }
-let lastStage = -1;
 function draw() {
   sled.setAttribute("transform", translateAlong(P, [U[0] * (M.r - SLED_R0), U[1] * (M.r - SLED_R0), 0]));
   const on = M.playing && M.phase !== "spinup" && M.jolt <= 0 && M.phase !== "seek";
@@ -342,16 +299,10 @@ function draw() {
     const live = M.playing && (seg === 0 ? on : seg === 1 ? on || M.buf > 0 : M.buf > 0 || on);
     d.el.style.fill = seg === 0 ? "#e5484d" : seg >= 2 ? "${ORANGE}" : "#3e63dd"; d.el.style.opacity = live ? "0.9" : "0"; }
   const st = stageOf();
-  const word = !M.playing ? "paused" : M.skip > 0.5 ? "sound skips" : on ? (M.refill ? "reading ahead" : "topping up") : "off track";
-  const text = "ESP " + (M.esp ? M.buf.toFixed(1) + " s" : "off") + " · " + word + (LABELS ? "" : " · " + STAGES[st][0]);
+  const word = !M.playing ? "paused" : M.skip > 0.5 ? "sound skips" : on ? (M.refill ? "reading ahead" : "topping up") : M.phase === "spinup" ? "spinning up" : "off track";
+  const text = "ESP " + (M.esp ? M.buf.toFixed(1) + " s" : "off") + " · " + word + " · " + STAGES[st];
   if (readout.textContent !== text) readout.textContent = text;
-  if (stageName) {
-    if (st !== lastStage) { lastStage = st; stageName.textContent = (st + 1) + " · " + STAGES[st][0]; chips.forEach((c, i) => { c.dataset.state = i < st ? "done" : i === st ? "now" : "next"; }); }
-    const extra = M.skip > 0.5 && M.playing ? " The memory ran dry before the laser recovered, so the sound skips." : !M.esp ? " ESP is off: without the memory, a jolt skips at once." : "";
-    const t = STAGES[st][1] + extra; if (stageText.textContent !== t) stageText.textContent = t;
-    meter.style.width = (M.esp ? M.buf / CAP * 100 : 0).toFixed(1) + "%"; meterText.textContent = (M.esp ? M.buf.toFixed(1) : "0.0") + " / 3.0 s";
-  }
-  stage.setAttribute("aria-valuetext", STAGES[st][0] + ". " + text);
+  stage.setAttribute("aria-valuetext", STAGES[st] + ". " + text);
 }
 // idle tour: a short bump, then a long shake that outlasts the 3-second memory
 const TOUR = [[6, 1.4], [13, 4.4]], TOUR_LEN = 22;
@@ -364,7 +315,7 @@ function tick(now) {
   frame = visible ? requestAnimationFrame(tick) : 0;
 }
 function restart() { Object.assign(M, { buf: 0, t: 0, phase: "spinup", phaseT: 0, jolt: 0, skip: 0, playing: true, spin: 0 }); tourT = 0; tourI = 0; }
-const run = () => { if (!frame && visible && !still.matches) { last = 0; frame = requestAnimationFrame(tick); } };
+const run = () => { if (still.matches) { draw(); return; } if (!frame && visible) { last = 0; frame = requestAnimationFrame(tick); } };
 function user() { touring = false; clearTimeout(idle); idle = setTimeout(() => { touring = true; restart(); }, 15000); }
 function stillFrame() { M.phase = "read"; M.buf = 2.4; M.t = 83; M.r = SLED_R0 + 10; M.angle = 0.4; M.spin = 1; draw(); }
 new IntersectionObserver((e) => { visible = e[e.length - 1].isIntersecting; if (visible) run(); }, { rootMargin: "120px 0px" }).observe(stage);
@@ -378,44 +329,24 @@ stage.addEventListener("keydown", (e) => {
   user(); e.preventDefault(); run();
 });
 still.addEventListener("change", () => { if (still.matches) stillFrame(); else run(); });
-const skipTo = Number(new URLSearchParams(location.search).get("t")) || 0;
+const tRaw = Number(new URLSearchParams(location.search).get("t"));
+const skipTo = Number.isNaN(tRaw) ? 0 : Math.min(Math.max(tRaw, 0), 600);
 if (skipTo) { for (let t = 0; t < skipTo; t += 1 / 60) { tourT += 1 / 60; if (tourI < TOUR.length && tourT >= TOUR[tourI][0]) { jolt(TOUR[tourI][1]); tourI++; } step(1 / 60); } }
 if (still.matches) stillFrame(); else draw();
 `;
 
-const style = `<style>
-.co-l{stroke:var(--anatomy-mid);stroke-width:.7}.co-dot{fill:var(--anatomy-strong)}
-.co-b{fill:var(--anatomy-card);stroke:var(--anatomy-mid);stroke-width:.8}
-.co-n{font:600 11px var(--anatomy-mono);fill:var(--anatomy-strong);text-anchor:middle}
-.co-t{font:500 11px var(--anatomy-mono);fill:var(--anatomy-strong)}
-.dm-stage{margin:0 0 6px;padding:10px 12px;border-radius:8px;background:var(--anatomy-page);box-shadow:var(--anatomy-lift)}
-.dm-steps{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px;padding:0;list-style:none;font:500 10.5px var(--anatomy-mono);text-transform:uppercase;letter-spacing:.06em}
-.dm-steps li{padding:2px 7px;border-radius:99px;color:var(--anatomy-muted);border:1px solid var(--anatomy-faint)}
-.dm-steps li[data-state="done"]{color:var(--anatomy-text)}
-.dm-steps li[data-state="now"]{color:#18181a;background:${SAMPLED.yellow};border-color:${SAMPLED.yellow}}
-.dm-name{font:600 15px/1.3 var(--anatomy-mono);color:var(--anatomy-strong);margin:0 0 2px}
-.dm-text{font:14px/1.45 system-ui,sans-serif;color:var(--anatomy-text);margin:0;min-height:4.3em}
-.dm-meter{display:flex;align-items:center;gap:8px;margin-top:6px;font:500 11px var(--anatomy-mono);color:var(--anatomy-text)}
-.dm-bar{flex:1;height:6px;border-radius:3px;background:var(--anatomy-faint);overflow:hidden}.dm-bar i{display:block;height:100%;width:0;background:${ORANGE}}
-.dm-key{display:none;columns:2;gap:14px;margin:8px 0 0;padding:0 0 0 22px;font:12px/1.6 var(--anatomy-mono);color:var(--anatomy-text)}
-@media (max-width:560px){.co-t{display:none}.co-b{r:15px}.co-n{font-size:17px;transform:translateY(2px);transform-box:fill-box}.dm-key{display:block}.dm-text{font-size:13px;min-height:5.8em}}
-</style>`;
-const panel = LABELS ? `<div class="dm-stage" aria-live="polite"><ol class="dm-steps">${["Spinning up", "Reading ahead", "Jolt", "Recovering"].map((s, i) => `<li data-step="${i}" data-state="${i ? "next" : "now"}">${i + 1} ${s}</li>`).join("")}</ol>` +
-  `<p class="dm-name" data-stage-name>1 · Spinning up</p><p class="dm-text" data-stage-text>${"The spindle motor brings the disc up to speed and the laser pickup focuses on the track of pits."}</p>` +
-  `<div class="dm-meter"><span>ESP memory</span><span class="dm-bar"><i data-meter></i></span><span data-meter-text>0.0 / 3.0 s</span></div></div>` : "";
-const keyList = LABELS ? `<ol class="dm-key">${CALL.map((c) => `<li>${c.name}</li>`).join("")}</ol>` : "";
 const plate = k.plateHtml({
-  fig: LABELS ? "Fig 3" : "Fig 1",
+  fig: "Fig 1",
   title: "Discman ESP D-421SP",
   hint: "Click: jolt · space: play/pause · E: ESP",
   readout: "ESP 0.0 s · spinning up",
   keys: [
     { mark: "red", label: "Laser path: pickup to disc (the real beam is infrared, 780 nm)" },
-    { mark: "lit", label: "Data: decoder → 3-second ESP memory → 1-bit DAC → jacks" },
+    { mark: "lit", label: "Data: decoder → 3-second ESP memory → 1-bit (bitstream) DAC → jacks" },
   ],
-  caption: "A cutaway Sony Discman ESP “Sports” D-421SP. The spindle motor spins the disc while the laser pickup, on a sled that creeps outward along two rails, reads the track of pits from the underside. The decoder corrects errors and the data goes into the ESP memory, which the manual says “constantly stores the next 3 seconds of sound”: with ESP on the disc spins faster than normal, so the pickup can read ahead. When a shock knocks the laser off the track, the music keeps playing out of the memory until the pickup recovers and refills it; a shake longer than the memory holds still skips. The 1-bit DAC turns the samples into the signal at the headphone and line-out jacks. The memory levels and timings shown are a simple model, not measurements.",
-  body: `${panel}<div class="iso-stage" tabindex="0" role="application" aria-label="Discman: click or J for a jolt, L for a long jolt, space to play or pause, E to toggle ESP">${svg}</div>${keyList}${style}`,
+  caption: "A cutaway Sony Discman ESP “Sports” D-421SP. The spindle motor spins the disc while the laser pickup, on a sled that creeps outward along two rails, reads the track of pits from the underside. The decoder corrects errors and the data goes into the ESP memory, a buffer of about three seconds of sound: with ESP on, the disc is read at twice the normal speed, so the pickup can stay ahead. When a shock knocks the laser off the track, the music keeps playing out of the memory until the pickup recovers and refills it; a shake longer than the memory holds still skips. The 1-bit (bitstream) DAC turns the samples into the signal at the headphone and line-out jacks. The memory levels and timings shown are a simple model, not measurements.",
+  body: `<div class="iso-stage" tabindex="0" role="application" aria-label="Discman: click or J for a jolt, L for a long jolt, space to play or pause, E to toggle ESP">${svg}</div>`,
 });
 const out = "index.html";
-writeFileSync(join(HERE, out), k.pageHtml({ title: "Discman ESP D-421SP", theme: "light", body: plate, script: kitScript() + live, width: LABELS ? 900 : 650 }));
+writeFileSync(join(HERE, out), k.pageHtml({ title: "Discman ESP D-421SP", theme: "light", body: plate, script: kitScript() + live, width: 650 }));
 console.log("wrote", out, "items", items.length);
