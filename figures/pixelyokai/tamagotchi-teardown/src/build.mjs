@@ -769,13 +769,16 @@ const DATA = {
 };
 
 const PARTS = ORDER.map((id, i) => `<button type="button" class="tg-part" data-part="${id}"><span class="tg-num">${String(i + 1).padStart(2, "0")}</span>${PIECES[id].name}</button>`).join("");
-const corners = `<div class="iso-plate-corners" aria-hidden="true"><span class="iso-plate-corner" data-corner="title">Tamagotchi · 1996</span><span class="iso-plate-corner" data-corner="readout" data-readout>hunger ♥♥♥♡ · happy ♥♥♡♡</span></div>`;
+// The gallery box shows only the drawing: no title, hint or readout (the player would print the readout under it).
+const corners = PROJECT
+  ? `<div class="iso-plate-corners" aria-hidden="true"><span class="iso-plate-corner" data-corner="title">Tamagotchi · 1996</span><span class="iso-plate-corner" data-corner="readout" data-readout>hunger ♥♥♥♡ · happy ♥♥♡♡</span></div>`
+  : "";
 const controls = `<div class="tg-controls"><span class="tg-keys" role="group" aria-label="Tamagotchi buttons"><button type="button" class="tg-key" data-press="0" aria-label="A: next icon">A</button><button type="button" class="tg-key" data-press="1" aria-label="B: choose">B</button><button type="button" class="tg-key" data-press="2" aria-label="C: back">C</button></span><button type="button" class="tg-apart" data-apart aria-pressed="false">Take apart</button><span class="tg-hint"><b>A</b> next icon · <b>B</b> choose · <b>C</b> back · <b>Space</b> take apart</span><span class="tg-live" aria-live="polite" data-live></span></div>`;
 const TIP = `<div class="tg-tip" data-tip aria-hidden="true"><b data-tip-name></b><span data-tip-say></span></div>`;
-const stage = `<div class="tg-stage" tabindex="0" role="group" aria-label="Tamagotchi teardown. Press A, B and C to play with it; Space takes it apart and puts it back; the parts list below highlights one layer.">${TIP}${svg.replace(`viewBox="0 0 ${W} ${H}"`, `viewBox="${HOME_VIEW.join(" ")}"`)}</div>`;
+const stage = `<div class="tg-stage" tabindex="0" role="group" aria-label="Tamagotchi teardown. Press A, B and C to play with it; Space takes it apart and puts it back; the parts list below highlights one layer.">${TIP}${PROJECT ? "" : `<span class="tg-live" aria-live="polite" data-live></span>`}${svg.replace(`viewBox="0 0 ${W} ${H}"`, `viewBox="${HOME_VIEW.join(" ")}"`)}</div>`;
 const caption =
   "Inside the 1996 egg is a 4-bit Epson microcontroller bonded straight onto the board and sealed under a blob of black epoxy, ticking from a 32.768 kHz watch crystal. Every few minutes of its clock the pet gets hungrier and sadder. The three buttons are silicone domes with carbon pills that close interleaved pads on the board; the chip answers by driving a 32 × 16 dot LCD whose rows and columns reach the board through two zebra strips of conductive rubber, pressed into contact by a sponge. Two LR44 cells in series give 3.0 V; a piezo disc in the back shell beeps. Time runs fast here: a heart drains in under half a minute.";
-const body = `<figure class="iso-figure tg"><div class="iso-plate">${corners}${stage}${controls}</div><figcaption class="iso-legend"><span class="tg-parts">${PARTS}</span><span class="iso-caption">${caption}</span></figcaption></figure>`;
+const body = `<figure class="iso-figure tg"><div class="iso-plate">${corners}${stage}${PROJECT ? controls : ""}</div><figcaption class="iso-legend"><span class="tg-parts">${PARTS}</span><span class="iso-caption">${caption}</span></figcaption></figure>`;
 
 const COMPONENT_CSS = `
 .tg-holed{fill-rule:evenodd}
@@ -823,6 +826,7 @@ const COMPONENT_CSS = `
 .tg-tip b{font-weight:500;color:var(--anatomy-strong)}
 .tg-stage[data-apart] .it:not([data-piece="stand"]):not([data-halo]){cursor:pointer}
 @media (prefers-reduced-motion:reduce){.tg-tip{transition:none}}
+.tg-cursor{position:absolute;left:0;top:0;z-index:3;width:18px;height:18px;border-radius:50%;background:#8E8E93;box-shadow:0 0 0 1px #ffffff8c,0 2px 6px -1px #0004;pointer-events:none;will-change:transform}
 .tg-hint b{font-weight:inherit;color:var(--anatomy-strong)}
 .tg-live{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .tg .iso-plate{padding:52px 24px 60px}
@@ -885,8 +889,15 @@ ${k.ISO_CSS}${PAGE_CSS}${COMPONENT_CSS}`);
 } else {
   // One self-contained page: styles, data and the live script inlined.
   const name = THEME === "light" ? "tamagotchi-teardown-light.html" : "tamagotchi-teardown.html";
-  const live = readFileSync(join(HERE, "main.js"), "utf8");
-  const page = k.pageHtml({ title: "Tamagotchi teardown", theme: THEME, body: `<style>${PAGE_CSS}${COMPONENT_CSS}</style>${body}${DATA_TAG}`, script: live, width: 1440 });
+  // The recording demo stays on the site; the gallery page leaves it out.
+  const live = readFileSync(join(HERE, "main.js"), "utf8").replace(/[ \t]*\/\/ @demo-start[\s\S]*?\/\/ @demo-end\n/g, "");
+  const GALLERY_CSS = `
+.iso-page{width:min(1440px,100% - 32px)}
+.tg .iso-plate{padding:40px 12px 44px}
+.tg-stage{margin:0 -12px}
+.tg-stage .it:not([data-piece="stand"]):not([data-halo]){cursor:pointer}
+`;
+  const page = k.pageHtml({ title: "Tamagotchi teardown", theme: THEME, body: `<style>${PAGE_CSS}${COMPONENT_CSS}${GALLERY_CSS}</style>${body}${DATA_TAG}`, script: live, width: 1440 });
   writeFileSync(join(HERE, name), page);
   console.log(`wrote ${name} (${(page.length / 1024).toFixed(0)} KB, ${items.length} items)`);
 }
